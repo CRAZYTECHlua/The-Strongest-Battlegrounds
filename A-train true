@@ -1,0 +1,32 @@
+local UserInputService = game:GetService("UserInputService")
+
+-- Function to execute your script
+local function executeScript()
+    print("Key pressed! Executing script...")
+    
+    -- Add your custom script here:
+    getgenv().settings = {
+        ["morph"] = {
+            ["enabled"] = true,
+            ["dontchangeskincolor"] = false,
+        },
+        ["ult_forcewalkspeed"] = true, -- forces walkspeed even if set to 0
+        ["ult_walkspeed"] = 64, -- how fast you walk in ult
+        ["tp_duration"] = 0.15 -- how long it takes to tp
+    }
+
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/CRAZYTECHlua/The-Strongest-Battlegrounds/refs/heads/main/A-train"))()
+end
+
+-- Detect when a specific key is pressed
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if input.KeyCode == Enum.KeyCode.Z then -- Replace 'Z' with your preferred key
+            executeScript()
+        else
+            print("Key pressed but not the trigger key.")
+        end
+    else
+        print("Input was processed by the game.")
+    end
+end)
