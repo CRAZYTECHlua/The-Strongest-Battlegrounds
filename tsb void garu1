@@ -1,0 +1,193 @@
+-- Import UserInputService
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+-- Create a Persistent GUI Container
+local persistentGuiFolder = ReplicatedStorage:FindFirstChild("PersistentGuiFolder") or Instance.new("Folder")
+persistentGuiFolder.Name = "PersistentGuiFolder"
+persistentGuiFolder.Parent = ReplicatedStorage
+
+-- GUI Setup (Only if not already created)
+if not persistentGuiFolder:FindFirstChild("AbilityGui") then
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AbilityGui"
+
+    local activateButton = Instance.new("TextButton")
+    activateButton.Parent = screenGui
+    activateButton.Size = UDim2.new(0, 200, 0, 50)
+    activateButton.Position = UDim2.new(0.5, -100, 0.9, -25)
+    activateButton.Text = "Activate Ability"
+    activateButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    activateButton.Font = Enum.Font.SourceSansBold
+    activateButton.TextSize = 24
+
+    screenGui.Parent = persistentGuiFolder
+end
+
+-- Variables
+local abilityActivated = false -- Whether the ability is active
+local deathThreshold = -495.73 -- Confirmed death threshold
+local safeDistance = 11.5 -- Distance above the threshold
+local hasTeleported = false -- Ensure only one teleportation cycle
+local cancelTeleport = false -- Cancellation flag
+local distanceToTeleport = 1999 -- Distance to teleport in the forward direction
+local timeInVoid = 0.7 -- Time spent in the void before teleporting back
+
+-- Function to create and display the loading bar
+local function createLoadingBar()
+    local loadingBar = Instance.new("Frame")
+    loadingBar.Name = "LoadingBar"
+    loadingBar.Size = UDim2.new(0, 200, 0, 20)
+    loadingBar.Position = UDim2.new(0.5, -100, 0.8, 0)
+    loadingBar.AnchorPoint = Vector2.new(0.5, 0)
+    loadingBar.BackgroundColor3 = Color3.fromRGB(0, 0, 255)
+
+    local parentGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+    local abilityGui = parentGui:FindFirstChild("AbilityGui")
+    if abilityGui then
+        loadingBar.Parent = abilityGui
+    else
+        loadingBar:Destroy()
+    end
+    return loadingBar
+end
+
+-- Function to create a baseplate for the void
+local function createBaseplate(position)
+    local baseplate = Instance.new("Part")
+    baseplate.Name = "VoidBaseplate"
+    baseplate.Size = Vector3.new(10, 1, 10) -- Small platform dimensions
+    baseplate.Position = position
+    baseplate.Anchored = true
+    baseplate.BrickColor = BrickColor.new("Bright blue") -- Optional: Make it visually distinct
+    baseplate.Parent = Workspace
+    return baseplate
+end
+
+-- Function to handle the teleportation ability
+local function activateAbility(player)
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") or hasTeleported then
+        return
+    end
+
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return end
+
+    -- Save original position for returning
+    local originalPosition = rootPart.Position
+
+    hasTeleported = true -- Mark as teleported
+    cancelTeleport = false -- Reset cancellation flag
+
+    print("Button 1 clicked! Press 'K' to cancel.")
+
+    -- Create the loading bar
+    local loadingBar = createLoadingBar()
+
+    wait(2.00) -- Slightly before 2.20 seconds
+
+    -- Check if teleportation was cancelled
+    if cancelTeleport then
+        print("Teleportation cancelled!")
+        hasTeleported = false -- Allow ability to be used again
+        if loadingBar then
+            loadingBar:Destroy() -- Remove the loading bar
+        end
+        return
+    end
+
+    -- Calculate the new teleport position, just above the death threshold
+    local lookVector = rootPart.CFrame.LookVector -- Direction the character is facing
+    local targetPosition = Vector3.new(
+        rootPart.Position.X + lookVector.X * distanceToTeleport, -- Forward by 1999 studs
+        deathThreshold + safeDistance, -- Just above the threshold
+        rootPart.Position.Z + lookVector.Z * distanceToTeleport -- Forward by 1999 studs
+    )
+
+    -- Create a baseplate at the void position
+    local baseplate = createBaseplate(Vector3.new(targetPosition.X, deathThreshold, targetPosition.Z))
+
+    -- Teleport the player forward onto the baseplate
+    print("Teleporting forward near the death threshold...")
+    rootPart.CFrame = CFrame.new(targetPosition)
+
+    -- Wait for the specified time in the void
+    wait(timeInVoid)
+
+    -- Teleport the player back to the original position
+    print("Teleporting back to original position...")
+    rootPart.CFrame = CFrame.new(originalPosition)
+
+    if loadingBar then
+        loadingBar:Destroy() -- Remove the loading bar
+    end
+
+    if baseplate and baseplate.Parent then
+        baseplate:Destroy() -- Remove the baseplate
+    end
+
+    hasTeleported = false
+    print("Teleportation cycle complete!")
+end
+
+-- Button Behavior
+local function setupGui(player)
+    -- Check if the GUI is already in PlayerGui
+    if player:WaitForChild("PlayerGui"):FindFirstChild("AbilityGui") then
+        return
+    end
+
+    -- Clone the GUI from Persistent Storage
+    local guiClone = persistentGuiFolder:FindFirstChild("AbilityGui"):Clone()
+    guiClone.Parent = player:WaitForChild("PlayerGui")
+
+    -- Set up button functionality
+    local activateButton = guiClone:FindFirstChild("TextButton")
+    activateButton.MouseButton1Click:Connect(function()
+        abilityActivated = not abilityActivated
+        if abilityActivated then
+            activateButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            activateButton.Text = "Ability Activated"
+            print("Ability activated for this life.")
+        else
+            activateButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            activateButton.Text = "Activate Ability"
+            print("Ability deactivated.")
+        end
+    end)
+end
+
+-- Player Setup: Reapply GUI when the character resets
+Players.PlayerAdded:Connect(function(player)
+    setupGui(player)
+
+    player.CharacterAdded:Connect(function(character)
+        -- Reset values upon respawn
+        abilityActivated = false
+        hasTeleported = false
+
+        -- Reapply GUI after respawn
+        setupGui(player)
+    end)
+end)
+
+-- Trigger GUI setup for the current player
+setupGui(Players.LocalPlayer)
+
+-- Detect key press to trigger the void ability or cancel it
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.One and abilityActivated then
+        print("Reminder: Press 'K' to cancel teleportation if needed!") -- Display reminder message
+        activateAbility(Players.LocalPlayer)
+    elseif input.KeyCode == Enum.KeyCode.K then
+        print("Cancel teleport pressed!")
+        cancelTeleport = true -- Set cancellation flag
+    end
+end)
