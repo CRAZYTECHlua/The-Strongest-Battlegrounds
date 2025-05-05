@@ -2,17 +2,17 @@ local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
- 
+
 -- Create a Persistent GUI Container
 local persistentGuiFolder = ReplicatedStorage:FindFirstChild("PersistentGuiFolder") or Instance.new("Folder")
 persistentGuiFolder.Name = "PersistentGuiFolder"
 persistentGuiFolder.Parent = ReplicatedStorage
- 
+
 -- GUI Setup (Only if not already created)
 if not persistentGuiFolder:FindFirstChild("AbilityGui") then
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "AbilityGui"
- 
+
     local activateButton = Instance.new("TextButton")
     activateButton.Parent = screenGui
     activateButton.Size = UDim2.new(0, 200, 0, 50)
@@ -22,30 +22,30 @@ if not persistentGuiFolder:FindFirstChild("AbilityGui") then
     activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     activateButton.Font = Enum.Font.SourceSansBold
     activateButton.TextSize = 24
- 
+
     screenGui.Parent = persistentGuiFolder
 end
- 
+
 -- Variables
 local abilityActivated = false
 local hasTeleported = false
 local cancelTeleport = false
 local loadingBar = nil -- Track the loading bar
 local loadingTween = nil -- For smooth animations
- 
+
 -- Function to create the GUI
 local function createAbilityGui()
     local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
- 
+
     -- Remove old GUI if it exists
     if playerGui:FindFirstChild("AbilityGui") then
         playerGui:FindFirstChild("AbilityGui"):Destroy()
     end
- 
+
     -- Clone the GUI from Persistent Storage
     local guiClone = persistentGuiFolder:FindFirstChild("AbilityGui"):Clone()
     guiClone.Parent = playerGui
- 
+
     -- Set up button functionality
     local activateButton = guiClone:FindFirstChild("TextButton")
     activateButton.MouseButton1Click:Connect(function()
@@ -61,26 +61,26 @@ local function createAbilityGui()
         end
     end)
 end
- 
+
 -- Function to create and display the loading bar with animation
 local function createLoadingBar()
     if loadingBar then
         loadingBar:Destroy()
     end
- 
+
     local barFrame = Instance.new("Frame")
     barFrame.Name = "LoadingBar"
     barFrame.Size = UDim2.new(0, 200, 0, 20)
     barFrame.Position = UDim2.new(0.5, -100, 0.8, 0)
     barFrame.AnchorPoint = Vector2.new(0.5, 0)
     barFrame.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
- 
+
     local fillBar = Instance.new("Frame")
     fillBar.Name = "FillBar"
     fillBar.Size = UDim2.new(0, 0, 1, 0) -- Start empty
     fillBar.BackgroundColor3 = Color3.fromRGB(0, 0, 255)
     fillBar.Parent = barFrame
- 
+
     local parentGui = Players.LocalPlayer:WaitForChild("PlayerGui")
     local abilityGui = parentGui:FindFirstChild("AbilityGui")
     if abilityGui then
@@ -88,7 +88,7 @@ local function createLoadingBar()
     else
         barFrame:Destroy()
     end
- 
+
     -- Add animation to fill the bar
     loadingTween = game:GetService("TweenService"):Create(
         fillBar,
@@ -96,31 +96,31 @@ local function createLoadingBar()
         { Size = UDim2.new(1, 0, 1, 0) } -- Full width
     )
     loadingTween:Play()
- 
+
     return barFrame
 end
- 
+
 -- Function to handle the teleportation ability
 local function activateAbility(player)
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") or hasTeleported then
         return
     end
- 
+
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
- 
+
     -- Save original position for returning
     local originalPosition = rootPart.Position
- 
+
     hasTeleported = true
     cancelTeleport = false
- 
+
     -- Create the loading bar with animation
     loadingBar = createLoadingBar()
- 
+
     wait(2.00) -- Wait for the teleport countdown
- 
+
     -- Check if teleportation was cancelled
     if cancelTeleport then
         print("Teleportation cancelled!")
@@ -130,7 +130,7 @@ local function activateAbility(player)
         end
         return
     end
- 
+
     -- Calculate the target position for teleportation
     local lookVector = rootPart.CFrame.LookVector -- Direction the player is facing
     local targetPosition = Vector3.new(
@@ -138,7 +138,7 @@ local function activateAbility(player)
         -495.73 + 11.5, -- Just above the death threshold
         rootPart.Position.Z + lookVector.Z * 3000 -- Move forward by 3000 studs
     )
- 
+
     -- Create a baseplate at the teleport destination
     local baseplate = Instance.new("Part")
     baseplate.Name = "VoidBaseplate"
@@ -147,42 +147,42 @@ local function activateAbility(player)
     baseplate.Anchored = true
     baseplate.BrickColor = BrickColor.new("Bright blue")
     baseplate.Parent = Workspace
- 
+
     -- Teleport the player forward to the target position
     print("Teleporting forward near the death threshold...")
     rootPart.CFrame = CFrame.new(targetPosition)
- 
+
     -- Wait for the specified time in the void
     wait(0.7) -- Time in the void
- 
+
     -- Teleport the player back to the original position
     print("Teleporting back to the original position...")
     rootPart.CFrame = CFrame.new(originalPosition)
- 
+
     -- Cleanup
     if loadingBar then
         loadingBar:Destroy() -- Remove the loading bar
     end
- 
+
     if baseplate and baseplate.Parent then
         baseplate:Destroy() -- Remove the baseplate
     end
- 
+
     hasTeleported = false
     print("Teleportation cycle complete!")
 end
- 
+
 -- Detect key press to manually disable the ability and recreate the GUI
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
- 
+
     if input.KeyCode == Enum.KeyCode.U then
         -- Disable the old ability and reset the GUI
         print("Ability manually disabled and GUI recreated with 'U'.")
         abilityActivated = false
         hasTeleported = false
         cancelTeleport = false
- 
+
         -- Recreate the ability menu
         createAbilityGui()
     elseif input.KeyCode == Enum.KeyCode.One and abilityActivated then
@@ -192,6 +192,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         cancelTeleport = true
     end
 end)
- 
+
 -- Setup GUI initially
 createAbilityGui()
